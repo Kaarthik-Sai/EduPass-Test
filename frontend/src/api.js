@@ -1,6 +1,5 @@
-const API = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-).replace(/\/$/, "");
+const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+
 export async function api(path, options = {}) {
   const token = localStorage.getItem("edupass_token");
   const response = await fetch(`${API}${path}`, {
