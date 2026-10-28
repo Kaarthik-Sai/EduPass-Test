@@ -14,7 +14,7 @@
     "backend": {
       "root": "backend",
       "framework": "express",
-      "entrypoint": "app.js"
+      "entrypoint": "server.js"
     }
   },
   "rewrites": [
