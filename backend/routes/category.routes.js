@@ -7,7 +7,7 @@ router.get('/', protect, async (req, res, next) => {
       PermissionCategory.find({ isActive: true }).sort({ name: 1 }).select('name slug description requiresHod requiresDocument maxDurationHours'),
       AppSettings.get(),
     ]);
-    const uploadLimitMB = Math.min(25, Math.max(1, Number(settings.maxFileSizeMB) || 5));
+    const uploadLimitMB = Math.min(process.env.VERCEL ? 4 : 25, Math.max(1, Number(settings.maxFileSizeMB) || 5));
     res.json({ success: true, categories, uploadLimitMB });
   } catch (error) { next(error); }
 });

@@ -15,7 +15,7 @@ Accounts are provisioned by an administrator. Public signup is intentionally dis
 ## Stack and structure
 
 - Backend: JavaScript, Node.js, Express 4, MongoDB, Mongoose
-- Frontend: React 18, JSX, React Router 6, Vite, standard CSS
+- Frontend: React 18, JSX, React Router 7, Vite, standard CSS
 - API: JSON REST API under `/api`
 
 ```text
@@ -98,6 +98,23 @@ Seed users all use password `Edupass@123`:
 
 Never run the seed command against important or production data. The script refuses when `NODE_ENV=production`.
 
+## Deploy to Vercel
+
+The root `vercel.json` defines separate `frontend` (Vite) and `backend` (Express) services. The `/api/...` rewrite sends API calls to Express and the catch-all sends browser routes to the React single-page app. This uses Vercel Services, which is currently a beta feature. In Vercel, connect the repository and select **Services** as the project framework before deploying.
+
+Set these backend environment variables in Vercel for each environment:
+
+- `MONGO_URI`: MongoDB Atlas connection URI for the deployment database.
+- `JWT_SECRET`: a new random secret of at least 32 characters.
+- `NODE_ENV`: `production`.
+- `JWT_EXPIRES_IN`: optional; defaults to `7d`.
+- `CLIENT_URL`: the single public app origin (for example, the deployed Vercel URL or custom domain).
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: optional SMTP settings for password-reset email.
+
+The backend uses MongoDB GridFS for supporting documents on Vercel because function-local files do not persist across invocations. Vercel limits function request bodies to 4.5 MB, so EduPass caps attachments at 4 MB there; local development continues to use private local storage and allows up to 25 MB (subject to the app setting). No upload-storage variable is required on Vercel; set `PRIVATE_UPLOAD_STORAGE=local` only for local development.
+
+After deployment, check `/api/health`, then sign in, submit a test request with an attachment, and open the attachment. Atlas must allow connections from the deployment; configure its network access for your Vercel setup. Do not run the seed script against production data. Vercel project setup, Atlas access, and live deployment are external steps and are not performed by the repository config.
+
 ## API overview
 
 All protected endpoints require `Authorization: Bearer <token>`.
@@ -118,6 +135,9 @@ All protected endpoints require `Authorization: Bearer <token>`.
 | POST | `/api/admin/users` | Admin creates a user and assigns role/profile scope |
 | PATCH | `/api/admin/users/:id/active` | Admin activates or deactivates a user |
 | GET | `/api/categories` | Active permission categories |
+| GET | `/api/notifications` | List the caller's recent notifications |
+| PATCH | `/api/notifications/:id/read` | Mark one owned notification as read |
+| PATCH | `/api/notifications/read` | Mark all caller notifications as read |
 | GET | `/api/permissions` | Role-scoped request list, optional `status`, `page`, `limit` |
 | POST | `/api/permissions` | Student submits a request as multipart form data; optional `document` file (required for categories that request one) |
 | GET | `/api/permissions/pending` | Requests awaiting the caller's review |

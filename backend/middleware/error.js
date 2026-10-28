@@ -25,12 +25,11 @@ exports.errorHandler = (err, req, res, next) => {
     status = 422; message = err.message;
   }
 
-  if (status >= 500) console.error(err);
+  if (status >= 500) console.error('Request failed:', require('../config/db').safeDatabaseError(err));
   res.status(status).json({
     success: false,
     message,
     ...(details ? { details } : {}),
-    ...(process.env.NODE_ENV === 'development' && status >= 500 ? { stack: err.stack } : {}),
   });
 };
 

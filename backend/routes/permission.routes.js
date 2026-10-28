@@ -11,7 +11,7 @@ const types = { '.pdf': ['application/pdf'], '.jpg': ['image/jpeg'], '.jpeg': ['
 const storage = multer.diskStorage({ destination: os.tmpdir(), filename: (req, file, cb) => cb(null, `${randomUUID()}.upload`) });
 function uploadDocument(req, res, next) {
   AppSettings.get().then((settings) => {
-    req.uploadLimitMB = Math.min(25, Math.max(1, Number(settings.maxFileSizeMB) || 5));
+    req.uploadLimitMB = Math.min(process.env.VERCEL ? 4 : 25, Math.max(1, Number(settings.maxFileSizeMB) || 5));
     const upload = multer({
       storage,
       limits: { fileSize: req.uploadLimitMB * 1024 * 1024, files: 1 },

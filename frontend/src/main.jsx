@@ -24,13 +24,20 @@ const C = createContext(null),
   role = (s) => s?.[0]?.toUpperCase() + s?.slice(1);
 function App() {
   const [session, setSession] = useState(null),
-    [busy, setBusy] = useState(!!localStorage.getItem("edupass_token"));
-  useEffect(() => {
+    [busy, setBusy] = useState(!!localStorage.getItem("edupass_token")),
+    [restoreError, setRestoreError] = useState("");
+  const restoreSession = () => {
+    setBusy(true);
+    setRestoreError("");
     api("/auth/me")
       .then(setSession)
-      .catch(() => localStorage.removeItem("edupass_token"))
+      .catch((error) => {
+        if (error.status === 401) localStorage.removeItem("edupass_token");
+        else setRestoreError(error.message || "Unable to connect. Please try again.");
+      })
       .finally(() => setBusy(false));
-  }, []);
+  };
+  useEffect(restoreSession, []);
   const signIn = (d) => {
     localStorage.setItem("edupass_token", d.token);
     setSession(d);
@@ -47,6 +54,14 @@ function App() {
       <div className="splash">
         <Brand />
         <span className="spinner" />
+      </div>
+    );
+  if (restoreError)
+    return (
+      <div className="splash">
+        <Brand />
+        <p>{restoreError}</p>
+        <button className="btn primary" onClick={restoreSession}>Retry</button>
       </div>
     );
   return (
@@ -333,9 +348,48 @@ function Reset() {
 }
 function Shell() {
   const { session, signOut } = useAuth(),
+    navigate = useNavigate(),
     [mobile, M] = useState(false),
+    [noticeOpen, setNoticeOpen] = useState(false),
+    [notifications, setNotifications] = useState([]),
+    [unread, setUnread] = useState(0),
+    [noticeError, setNoticeError] = useState(""),
     u = session.user,
     staff = ["faculty", "hod", "admin"].includes(u.role);
+  const loadNotifications = async () => {
+    try {
+      const data = await api("/notifications");
+      setNotifications(data.notifications || []);
+      setUnread(data.unread || 0);
+      setNoticeError("");
+    } catch (error) {
+      setNoticeError(error.message || "Unable to load notifications");
+    }
+  };
+  useEffect(() => { loadNotifications(); }, []);
+  const markAllRead = async () => {
+    try {
+      await api("/notifications/read", { method: "PATCH" });
+      setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
+      setUnread(0);
+    } catch (error) {
+      setNoticeError(error.message || "Unable to update notifications");
+    }
+  };
+  const openNotification = async (item) => {
+    if (!item.isRead) {
+      try {
+        await api(`/notifications/${item._id}/read`, { method: "PATCH" });
+        setNotifications((items) => items.map((entry) => entry._id === item._id ? { ...entry, isRead: true } : entry));
+        setUnread((count) => Math.max(0, count - 1));
+      } catch (error) {
+        setNoticeError(error.message || "Unable to update notification");
+        return;
+      }
+    }
+    setNoticeOpen(false);
+    if (item.request) navigate(`/requests/${item.request}`);
+  };
   return (
     <div className="shell">
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
@@ -406,7 +460,23 @@ function Shell() {
                 day: "numeric",
               })}
             </span>
-            <button>♧</button>
+            <div className="notification-wrap">
+              <button className="notification-button" aria-label="Notifications" aria-expanded={noticeOpen} onClick={() => { setNoticeOpen((open) => !open); if (!noticeOpen) loadNotifications(); }}>
+                ♧{unread > 0 && <i className="notification-count">{unread > 99 ? "99+" : unread}</i>}
+              </button>
+              {noticeOpen && (
+                <section className="notification-panel" aria-label="Notifications">
+                  <header><b>Notifications</b>{unread > 0 && <button onClick={markAllRead}>Mark all read</button>}</header>
+                  {noticeError && <p className="notification-error">{noticeError}</p>}
+                  {!notifications.length && !noticeError && <p className="notification-empty">You’re all caught up.</p>}
+                  {notifications.map((item) => (
+                    <button key={item._id} className={`notification-item ${item.isRead ? "read" : "unread"}`} onClick={() => openNotification(item)}>
+                      <b>{item.title}</b><span>{item.message}</span><small>{dateTime(item.createdAt)}</small>
+                    </button>
+                  ))}
+                </section>
+              )}
+            </div>
             <button onClick={() => location.assign("/profile")}>
               {u.name?.split(" ")[0]}　⌄
             </button>

@@ -14,6 +14,7 @@ if (!mongoUri) {
   const privateRoot = path.join(os.tmpdir(), `edupass-private-test-${crypto.randomUUID()}`);
   process.env.PRIVATE_UPLOAD_DIR = privateRoot;
   process.env.NODE_ENV = 'test';
+  const documentStorage = require('../utils/document-storage.service');
   const mongoose = require('mongoose');
   const app = require('../app');
   const { User, Department, AcademicYear, Section, StudentProfile, FacultyProfile, FacultySectionMapping, HodProfile, PermissionCategory, PermissionRequest, PermissionDocument, AppSettings } = require('../models');
@@ -105,6 +106,19 @@ if (!mongoUri) {
     assert.equal((await download(facultyToken)).status, 200);
   });
 
+  test('review notifications can be listed and marked read only by their owner', async () => {
+    const headers = { Authorization: `Bearer ${studentToken}` };
+    const response = await fetch(`${base}/notifications`, { headers });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.ok(data.unread > 0);
+    assert.ok(data.notifications.length > 0);
+    const notification = data.notifications[0];
+    const marked = await fetch(`${base}/notifications/${notification._id}/read`, { method: 'PATCH', headers });
+    assert.equal(marked.status, 200);
+    const forbidden = await fetch(`${base}/notifications/${notification._id}/read`, { method: 'PATCH', headers: { Authorization: `Bearer ${otherStudentToken}` } });
+    assert.equal(forbidden.status, 404);
+  });
   test('rejection remains available and does not remove the submitted document', async () => {
     const submitted = await postRequest(otherStudentToken, formFor());
     assert.equal(submitted.status, 201, await submitted.clone().text());
@@ -145,6 +159,23 @@ if (!mongoUri) {
     assert.deepEqual(await fs.readdir(privateRoot), before);
     assert.equal(await PermissionRequest.countDocuments({ 'documents.0': { $exists: true } }), 2);
     assert.equal(await PermissionDocument.countDocuments({}), 2);
+  });
+  test('GridFS storage round-trips supporting documents', async () => {
+    const filePath = path.join(os.tmpdir(), `edupass-gridfs-${crypto.randomUUID()}.pdf`);
+    const content = Buffer.from('%PDF-1.7\nGridFS integration fixture\n');
+    await fs.writeFile(filePath, content);
+    let key;
+    try {
+      const file = { path: filePath, originalname: 'gridfs-proof.pdf', mimetype: 'application/pdf', size: content.length };
+      const metadata = await documentStorage.inspectTemporaryFile(file);
+      key = await documentStorage.storeTemporaryFile(filePath, 'gridfs', metadata);
+      const chunks = [];
+      for await (const chunk of documentStorage.createReadStream(key, 'gridfs')) chunks.push(chunk);
+      assert.deepEqual(Buffer.concat(chunks), content);
+    } finally {
+      if (key) await documentStorage.deleteStoredFile(key, 'gridfs');
+      await fs.rm(filePath, { force: true });
+    }
   });
 }
 

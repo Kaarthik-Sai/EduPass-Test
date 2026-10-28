@@ -76,7 +76,8 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     user.resetTokenHash = sha256(raw);
     user.resetTokenExpires = new Date(Date.now() + 30 * 60000);
     await user.save({ validateBeforeSave: false });
-    const link = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${raw}`;
+    const frontendOrigin = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim().replace(/\/+$/, '');
+    const link = `${frontendOrigin}/reset-password?token=${raw}`;
     await sendEmail({ to: user.email, subject: 'EduPass password reset', text: `Reset your password (valid 30 min): ${link}` });
     await logAudit(req, 'auth.password_reset_requested', { entity: 'User', entityId: user._id, actor: user });
   }

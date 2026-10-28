@@ -53,6 +53,7 @@ exports.create = asyncHandler(async (req, res) => {
   let request;
   let document;
   let storageKey;
+  let storageType;
   try {
     const { category, reason, destination, contactPerson, contactPhone, startAt, endAt } = req.body;
     if (!mongoose.isValidObjectId(category)) throw new ApiError(400, 'Choose a valid permission category');
@@ -78,7 +79,8 @@ exports.create = asyncHandler(async (req, res) => {
     let verifiedFile;
     if (req.file) {
       verifiedFile = await documentStorage.inspectTemporaryFile(req.file);
-      storageKey = await documentStorage.storeTemporaryFile(req.file.path);
+      storageType = documentStorage.getStorageType();
+      storageKey = await documentStorage.storeTemporaryFile(req.file.path, storageType, verifiedFile);
     }
     request = await PermissionRequest.create({
       requestId: makeRequestId(), student: req.user._id, department: profile.department, academicYear: profile.academicYear,
@@ -90,7 +92,7 @@ exports.create = asyncHandler(async (req, res) => {
     if (verifiedFile) {
       document = await PermissionDocument.create({
         request: request._id, uploadedBy: req.user._id, originalName: verifiedFile.originalName,
-        storageKey, mimeType: verifiedFile.mimeType, size: verifiedFile.size, storage: 'local', uploadedAt: new Date(),
+        storageKey, mimeType: verifiedFile.mimeType, size: verifiedFile.size, storage: storageType, uploadedAt: new Date(),
       });
       request.documents.push(document._id);
       await request.save();
@@ -104,7 +106,7 @@ exports.create = asyncHandler(async (req, res) => {
       await PermissionRequest.deleteOne({ _id: request._id }).catch(() => {});
     }
     if (document) await PermissionDocument.deleteOne({ _id: document._id }).catch(() => {});
-    if (storageKey) await documentStorage.deleteStoredFile(storageKey).catch(() => {});
+    if (storageKey) await documentStorage.deleteStoredFile(storageKey, storageType).catch(() => {});
     throw error;
   } finally {
     if (req.file?.path) await documentStorage.removeTemporaryFile(req.file.path);

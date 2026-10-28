@@ -1,4 +1,4 @@
-const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+const API = (import.meta.env.PROD ? "/api" : (import.meta.env.VITE_API_URL || "/api")).replace(/\/+$/, "");
 
 export async function api(path, options = {}) {
   const token = localStorage.getItem("edupass_token");
@@ -12,8 +12,11 @@ export async function api(path, options = {}) {
   });
   const data =
     response.status === 204 ? {} : await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(data.message || `Request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(data.message || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 export const dateTime = (value) =>
@@ -39,8 +42,11 @@ export async function uploadApi(path, body) {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(data.message || `Request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(data.message || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 export async function downloadDocument(id) {

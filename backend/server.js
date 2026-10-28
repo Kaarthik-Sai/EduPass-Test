@@ -26,6 +26,6 @@ connectDB()
     process.once('SIGTERM', () => shutdown('SIGTERM'));
   })
   .catch((error) => {
-    console.error('Startup failed:', error.message);
+    console.error('Startup failed:', connectDB.safeDatabaseError(error));
     process.exit(1);
   });
