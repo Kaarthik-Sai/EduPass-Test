@@ -1,0 +1,16 @@
+const router = require('express').Router();
+const rateLimit = require('express-rate-limit');
+const c = require('../controllers/auth.controller');
+const v = require('../middleware/auth.validator');
+const validate = require('../middleware/validate');
+const { protect } = require('../middleware/auth');
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { success: false, message: 'Too many attempts. Please try again later' } });
+router.post('/login', authLimiter, v.login, validate, c.login);
+router.post('/forgot-password', authLimiter, v.forgot, validate, c.forgotPassword);
+router.post('/reset-password', authLimiter, v.reset, validate, c.resetPassword);
+router.use(protect);
+router.get('/me', c.me);
+router.post('/logout', c.logout);
+router.put('/profile', v.updateProfile, validate, c.updateProfile);
+router.put('/change-password', v.changePassword, validate, c.changePassword);
+module.exports = router;
