@@ -1,12 +1,18 @@
+<<<<<<< HEAD
 const mongoose = require('mongoose');
+=======
+const mongoose = require("mongoose");
+>>>>>>> 4992c71 (idl)
 const dotenv = require("dotenv");
 dotenv.config();
 
 const connectDB = async () => {
-  if (!process.env.MONGO_URI) throw new Error('MONGO_URI is not set');
-  mongoose.set('strictQuery', true);
+  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is not set");
+  mongoose.set("strictQuery", true);
   const conn = await mongoose.connect(process.env.MONGO_URI);
-  console.log(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
+  console.log(
+    `MongoDB connected: ${conn.connection.host}/${conn.connection.name}`,
+  );
   return conn;
 };
 module.exports = connectDB;
